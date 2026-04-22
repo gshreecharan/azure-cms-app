@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # Article CMS (FlaskWebProject)
 
 This project is a Python web application built using Flask. The user can log in and out and create/edit articles. An article consists of a title, author, and body of text stored in an Azure SQL Server along with an image that is stored in Azure Blob Storage. You will also implement OAuth2 with Sign in with Microsoft using the `msal` library, along with app logging.
@@ -58,3 +59,7 @@ This folder contains sample screenshots that students are required to submit in 
 All Python dependencies are stored in the requirements.txt file. To install them, using Visual Studio 2019 Community Edition:
 1. In the Solution Explorer, expand "Python Environments"
 2. Right-click on "Python 3.10 (64-bit) (global default)" and select "Install from requirements.txt"
+=======
+# azure-cms-app
+Article CMS Project
+>>>>>>> 3209801700982546a0dd3409ac16dd8cb82b2fd8
