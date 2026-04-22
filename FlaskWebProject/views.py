@@ -60,7 +60,6 @@ def post(id):
     )
 
 
-
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if current_user.is_authenticated:
@@ -71,13 +70,11 @@ def login():
     if form.validate_on_submit():
         user = User.query.filter_by(username=form.username.data).first()
 
-    
         if user is None or user.password_hash != form.password.data:
             app.logger.info("FAILED LOGIN for user: %s", form.username.data)
             flash('Invalid username or password')
             return redirect(url_for('login'))
 
-        
         app.logger.info("SUCCESS LOGIN for user: %s", form.username.data)
 
         login_user(user, remember=form.remember_me.data)
@@ -88,15 +85,49 @@ def login():
 
         return redirect(next_page)
 
+    
     session["state"] = str(uuid.uuid4())
-    auth_url = "#"  # MS login placeholder
+
+    auth_url = _build_auth_url(
+        scopes=["User.Read"],
+        state=session["state"]
+    )
 
     return render_template('login.html', title='Sign In', form=form, auth_url=auth_url)
 
 
 @app.route(Config.REDIRECT_PATH)
 def authorized():
-    return redirect(url_for('home'))
+    code = request.args.get('code')
+
+    if not code:
+        return redirect(url_for('login'))
+
+    result = _build_msal_app().acquire_token_by_authorization_code(
+        code,
+        scopes=["User.Read"],
+        redirect_uri=url_for('authorized', _external=True)
+    )
+
+    if "id_token_claims" in result:
+        username = result["id_token_claims"].get("preferred_username")
+
+        user = User.query.filter_by(username=username).first()
+
+        if not user:
+            user = User(username=username)
+            db.session.add(user)
+            db.session.commit()
+
+        login_user(user)
+
+        app.logger.info("SUCCESS MS LOGIN for user: %s", username)
+
+        return redirect(url_for('home'))
+
+    app.logger.info("FAILED MS LOGIN")
+
+    return redirect(url_for('login'))
 
 
 @app.route('/logout')
@@ -106,17 +137,16 @@ def logout():
     return redirect(url_for('login'))
 
 
-def _load_cache():
-    return None
-
-
-def _save_cache(cache):
-    pass
-
-
 def _build_msal_app(cache=None, authority=None):
-    return None
-
+    return msal.ConfidentialClientApplication(
+        app.config['CLIENT_ID'],
+        authority=authority or app.config['AUTHORITY'],
+        client_credential=app.config['CLIENT_SECRET']
+    )
 
 def _build_auth_url(authority=None, scopes=None, state=None):
-    return "#"
+    return _build_msal_app().get_authorization_request_url(
+        scopes or [],
+        state=state,
+        redirect_uri=url_for('authorized', _external=True)
+    )
